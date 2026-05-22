@@ -1,0 +1,1091 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Harmonic Mixer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0a0c;
+    --surface: #111116;
+    --surface2: #18181f;
+    --border: #2a2a35;
+    --accent: #1db954;
+    --accent2: #00d4ff;
+    --warn: #ff6b35;
+    --text: #e8e8f0;
+    --muted: #6b6b80;
+    --mono: 'Space Mono', monospace;
+    --sans: 'Syne', sans-serif;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--mono);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Background grid */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(29,185,84,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(29,185,84,0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .container {
+    position: relative;
+    z-index: 1;
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 40px 24px 80px;
+  }
+
+  header {
+    margin-bottom: 48px;
+  }
+
+  .logo {
+    font-family: var(--sans);
+    font-weight: 800;
+    font-size: 2rem;
+    letter-spacing: -0.03em;
+    line-height: 1;
+    margin-bottom: 6px;
+  }
+
+  .logo span { color: var(--accent); }
+
+  .tagline {
+    font-size: 0.72rem;
+    color: var(--muted);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+  }
+
+  /* Setup panel */
+  .setup-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 28px;
+    margin-bottom: 24px;
+  }
+
+  .setup-card h2 {
+    font-family: var(--sans);
+    font-size: 0.7rem;
+    font-weight: 600;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 16px;
+  }
+
+  .field {
+    margin-bottom: 16px;
+  }
+
+  .field label {
+    display: block;
+    font-size: 0.7rem;
+    color: var(--muted);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    margin-bottom: 6px;
+  }
+
+  .field input {
+    width: 100%;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 2px;
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 0.8rem;
+    padding: 10px 14px;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+
+  .field input:focus { border-color: var(--accent); }
+  .field input::placeholder { color: var(--muted); }
+
+  .field-hint {
+    font-size: 0.65rem;
+    color: var(--muted);
+    margin-top: 5px;
+    line-height: 1.5;
+  }
+
+  .field-hint a { color: var(--accent2); text-decoration: none; }
+  .field-hint a:hover { text-decoration: underline; }
+
+  .btn-row {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-top: 20px;
+  }
+
+  button {
+    font-family: var(--mono);
+    font-size: 0.75rem;
+    letter-spacing: 0.06em;
+    border: none;
+    border-radius: 2px;
+    cursor: pointer;
+    padding: 10px 20px;
+    transition: all 0.15s;
+  }
+
+  .btn-primary {
+    background: var(--accent);
+    color: #000;
+    font-weight: 700;
+  }
+
+  .btn-primary:hover { background: #22e860; transform: translateY(-1px); }
+  .btn-primary:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+
+  .btn-secondary {
+    background: transparent;
+    color: var(--text);
+    border: 1px solid var(--border);
+  }
+
+  .btn-secondary:hover { border-color: var(--accent); color: var(--accent); }
+
+  .btn-danger {
+    background: transparent;
+    color: var(--warn);
+    border: 1px solid var(--warn);
+  }
+
+  .btn-danger:hover { background: var(--warn); color: #fff; }
+
+  /* Status */
+  .status-bar {
+    font-size: 0.72rem;
+    color: var(--muted);
+    padding: 10px 0;
+    min-height: 32px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .status-bar.error { color: var(--warn); }
+  .status-bar.success { color: var(--accent); }
+
+  .spinner {
+    width: 12px;
+    height: 12px;
+    border: 2px solid var(--border);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    flex-shrink: 0;
+  }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* Sort controls */
+  .sort-controls {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 20px 28px;
+    margin-bottom: 24px;
+    display: none;
+    gap: 24px;
+    flex-wrap: wrap;
+    align-items: flex-end;
+  }
+
+  .sort-controls.visible { display: flex; }
+
+  .sort-controls label {
+    font-size: 0.65rem;
+    color: var(--muted);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    display: block;
+    margin-bottom: 6px;
+  }
+
+  .sort-controls select {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 0.75rem;
+    padding: 8px 12px;
+    border-radius: 2px;
+    outline: none;
+    cursor: pointer;
+  }
+
+  .sort-controls select:focus { border-color: var(--accent); }
+
+  /* Playlist panels */
+  .panels {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin-bottom: 24px;
+  }
+
+  @media (max-width: 640px) {
+    .panels { grid-template-columns: 1fr; }
+  }
+
+  .panel {
+    display: none;
+  }
+
+  .panel.visible { display: block; }
+
+  .panel-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 10px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .panel-title {
+    font-family: var(--sans);
+    font-size: 0.65rem;
+    font-weight: 600;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  .panel-count {
+    font-size: 0.65rem;
+    color: var(--muted);
+  }
+
+  .track-list {
+    max-height: 520px;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: var(--border) transparent;
+  }
+
+  .track {
+    display: grid;
+    grid-template-columns: 20px 1fr auto;
+    gap: 10px;
+    align-items: center;
+    padding: 8px 0;
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+    font-size: 0.72rem;
+    transition: background 0.15s;
+  }
+
+  .track:hover { background: rgba(255,255,255,0.02); }
+
+  .track-num {
+    color: var(--muted);
+    font-size: 0.62rem;
+    text-align: right;
+  }
+
+  .track-info { overflow: hidden; }
+
+  .track-name {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    color: var(--text);
+    font-size: 0.75rem;
+  }
+
+  .track-artist {
+    color: var(--muted);
+    font-size: 0.65rem;
+    margin-top: 2px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .track-meta {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 3px;
+    flex-shrink: 0;
+  }
+
+  .key-badge {
+    font-size: 0.6rem;
+    font-weight: 700;
+    padding: 2px 6px;
+    border-radius: 2px;
+    letter-spacing: 0.05em;
+  }
+
+  .key-A { background: rgba(29,185,84,0.2); color: var(--accent); border: 1px solid rgba(29,185,84,0.3); }
+  .key-B { background: rgba(0,212,255,0.15); color: var(--accent2); border: 1px solid rgba(0,212,255,0.3); }
+
+  .bpm-label {
+    font-size: 0.6rem;
+    color: var(--muted);
+  }
+
+  /* Transition score indicator */
+  .transition-indicator {
+    grid-column: 1 / -1;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 3px 0 3px 30px;
+    font-size: 0.6rem;
+  }
+
+  .transition-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  .t-great { background: var(--accent); }
+  .t-ok { background: #f0c040; }
+  .t-rough { background: var(--warn); }
+
+  .transition-text { color: var(--muted); }
+
+  /* Score summary */
+  .score-summary {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 16px 20px;
+    margin-bottom: 16px;
+    display: none;
+    gap: 32px;
+    font-size: 0.72rem;
+  }
+
+  .score-summary.visible { display: flex; flex-wrap: wrap; }
+
+  .score-item { }
+  .score-label { color: var(--muted); font-size: 0.62rem; letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 3px; }
+  .score-value { font-family: var(--sans); font-size: 1.2rem; font-weight: 800; }
+  .score-value.good { color: var(--accent); }
+  .score-value.ok { color: #f0c040; }
+  .score-value.bad { color: var(--warn); }
+
+  /* Write back section */
+  .write-section {
+    display: none;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 20px 28px;
+    margin-top: 16px;
+  }
+
+  .write-section.visible { display: block; }
+
+  .write-section p {
+    font-size: 0.72rem;
+    color: var(--muted);
+    margin-bottom: 14px;
+    line-height: 1.6;
+  }
+
+  .write-section strong { color: var(--text); }
+
+  /* Auth section */
+  .auth-section {
+    display: none;
+    background: var(--surface);
+    border: 1px solid rgba(29,185,84,0.3);
+    border-radius: 4px;
+    padding: 20px 28px;
+    margin-bottom: 24px;
+  }
+
+  .auth-section.visible { display: block; }
+  .auth-section p { font-size: 0.72rem; color: var(--muted); margin-bottom: 12px; line-height: 1.6; }
+
+  /* Collapsible setup instructions */
+  details {
+    margin-top: 12px;
+  }
+
+  summary {
+    font-size: 0.68rem;
+    color: var(--accent2);
+    cursor: pointer;
+    letter-spacing: 0.05em;
+    user-select: none;
+    list-style: none;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  summary::before {
+    content: '▶';
+    font-size: 0.55rem;
+    transition: transform 0.2s;
+  }
+
+  details[open] summary::before { transform: rotate(90deg); }
+
+  .instructions {
+    margin-top: 12px;
+    padding: 14px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 2px;
+    font-size: 0.68rem;
+    color: var(--muted);
+    line-height: 1.8;
+  }
+
+  .instructions ol { padding-left: 18px; }
+  .instructions li { margin-bottom: 4px; }
+  .instructions code {
+    background: var(--surface2);
+    padding: 1px 5px;
+    border-radius: 2px;
+    color: var(--accent2);
+    font-size: 0.65rem;
+  }
+  .instructions a { color: var(--accent2); }
+
+  /* Camelot wheel mini legend */
+  .camelot-legend {
+    display: flex;
+    gap: 16px;
+    font-size: 0.62rem;
+    color: var(--muted);
+    margin-top: 8px;
+    flex-wrap: wrap;
+  }
+
+  .legend-item { display: flex; align-items: center; gap: 5px; }
+  .legend-dot { width: 8px; height: 8px; border-radius: 50%; }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <header>
+    <div class="logo">Harmonic<span>.</span>Mixer</div>
+    <div class="tagline">Camelot wheel playlist optimizer for Spotify</div>
+  </header>
+
+  <!-- Setup -->
+  <div class="setup-card">
+    <h2>Configuration</h2>
+    <div class="field">
+      <label>Spotify Client ID</label>
+      <input type="text" id="clientId" placeholder="your_client_id_here" />
+      <div class="field-hint">
+        Get one free at <a href="https://developer.spotify.com/dashboard" target="_blank">developer.spotify.com/dashboard</a>. Set redirect URI to <code id="redirectUriDisplay"></code>
+        <details>
+          <summary>Setup instructions</summary>
+          <div class="instructions">
+            <ol>
+              <li>Go to <a href="https://developer.spotify.com/dashboard" target="_blank">developer.spotify.com/dashboard</a> and log in</li>
+              <li>Click <strong>Create app</strong></li>
+              <li>Give it any name, e.g. "Harmonic Mixer"</li>
+              <li>Under <strong>Redirect URIs</strong>, add exactly: <code id="redirectUriInstructions"></code></li>
+              <li>Check <strong>Web API</strong> and save</li>
+              <li>Copy the <strong>Client ID</strong> and paste it above</li>
+            </ol>
+          </div>
+        </details>
+      </div>
+    </div>
+    <div class="field">
+      <label>GetSongBPM API Key</label>
+      <input type="text" id="bpmApiKey" placeholder="your_getsongbpm_api_key" />
+      <div class="field-hint">
+        Free key at <a href="https://getsongbpm.com/api" target="_blank">getsongbpm.com/api</a>. Required because Spotify deprecated their BPM/key endpoint in 2024.
+      </div>
+    </div>
+    <div class="field">
+      <label>Playlist URL or ID</label>
+      <input type="text" id="playlistUrl" placeholder="https://open.spotify.com/playlist/..." />
+    </div>
+    <div class="btn-row">
+      <button class="btn-primary" id="loginBtn" onclick="startAuth()">Connect Spotify</button>
+      <button class="btn-secondary" id="loadBtn" onclick="loadPlaylist()" style="display:none">Load Playlist</button>
+    </div>
+  </div>
+
+  <!-- Auth status -->
+  <div class="auth-section" id="authSection">
+    <p>✓ Connected as <strong id="userName"></strong></p>
+  </div>
+
+  <!-- Status -->
+  <div class="status-bar" id="status"></div>
+
+  <!-- Sort controls -->
+  <div class="sort-controls" id="sortControls">
+    <div>
+      <label>Sort strategy</label>
+      <select id="sortStrategy" onchange="sortAndRender()">
+        <option value="harmonic_bpm">Harmonic + BPM (recommended)</option>
+        <option value="bpm_asc">BPM ascending</option>
+        <option value="bpm_desc">BPM descending</option>
+        <option value="key_only">Key only (Camelot)</option>
+      </select>
+    </div>
+    <div>
+      <label>Start key (optional)</label>
+      <select id="startKey" onchange="sortAndRender()">
+        <option value="">Any</option>
+      </select>
+    </div>
+    <div style="margin-left:auto">
+      <button class="btn-primary" onclick="showWriteSection()">Apply to Spotify →</button>
+    </div>
+  </div>
+
+  <!-- Score summary -->
+  <div class="score-summary" id="scoreSummary">
+    <div class="score-item">
+      <div class="score-label">Overall score</div>
+      <div class="score-value" id="scoreOverall"></div>
+    </div>
+    <div class="score-item">
+      <div class="score-label">Great transitions</div>
+      <div class="score-value good" id="scoreGreat"></div>
+    </div>
+    <div class="score-item">
+      <div class="score-label">OK transitions</div>
+      <div class="score-value ok" id="scoreOk"></div>
+    </div>
+    <div class="score-item">
+      <div class="score-label">Rough transitions</div>
+      <div class="score-value bad" id="scoreRough"></div>
+    </div>
+    <div class="camelot-legend" style="flex-basis:100%; margin-top:0">
+      <div class="legend-item"><div class="legend-dot" style="background:var(--accent)"></div> Great (same/adjacent key, &lt;8 BPM)</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#f0c040"></div> OK (2 steps, or &lt;15 BPM)</div>
+      <div class="legend-item"><div class="legend-dot" style="background:var(--warn)"></div> Rough (far keys or big BPM jump)</div>
+    </div>
+  </div>
+
+  <!-- Panels -->
+  <div class="panels">
+    <div class="panel" id="panelOriginal">
+      <div class="panel-header">
+        <div class="panel-title">Original order</div>
+        <div class="panel-count" id="originalCount"></div>
+      </div>
+      <div class="track-list" id="listOriginal"></div>
+    </div>
+    <div class="panel" id="panelSorted">
+      <div class="panel-header">
+        <div class="panel-title">Optimized order</div>
+        <div class="panel-count" id="sortedCount"></div>
+      </div>
+      <div class="track-list" id="listSorted"></div>
+    </div>
+  </div>
+
+  <!-- Write back -->
+  <div class="write-section" id="writeSection">
+    <p>This will <strong>reorder your Spotify playlist</strong> to match the optimized order shown above. The playlist content stays the same, only the order changes. This cannot be undone automatically.</p>
+    <div class="btn-row">
+      <button class="btn-danger" id="writeBtn" onclick="writeToSpotify()">Reorder playlist on Spotify</button>
+      <button class="btn-secondary" onclick="document.getElementById('writeSection').classList.remove('visible')">Cancel</button>
+    </div>
+  </div>
+
+</div>
+
+<footer style="position:relative;z-index:1;text-align:center;padding:24px;font-size:0.65rem;color:var(--muted);border-top:1px solid var(--border);margin-top:40px;">
+  BPM and key data by <a href="https://getsongbpm.com" target="_blank" style="color:var(--accent2);text-decoration:none;">GetSongBPM</a>
+</footer>
+
+<script>
+// ---- Camelot wheel ----
+// Spotify gives key (0-11, C=0) and mode (0=minor, 1=major)
+// Map to Camelot: minor = A, major = B
+const CAMELOT = {
+  // minor (mode=0) -> xA
+  '0-0': '8A',  '1-0': '3A',  '2-0': '10A', '3-0': '5A',
+  '4-0': '12A', '5-0': '7A',  '6-0': '2A',  '7-0': '9A',
+  '8-0': '4A',  '9-0': '11A', '10-0': '6A', '11-0': '1A',
+  // major (mode=1) -> xB
+  '0-1': '8B',  '1-1': '3B',  '2-1': '10B', '3-1': '5B',
+  '4-1': '12B', '5-1': '7B',  '6-1': '2B',  '7-1': '9B',
+  '8-1': '4B',  '9-1': '11B', '10-1': '6B', '11-1': '1B',
+};
+
+function toCamelot(key, mode) {
+  return CAMELOT[`${key}-${mode}`] || '?';
+}
+
+function camelotNum(c) { return parseInt(c); }
+function camelotLetter(c) { return c.slice(-1); }
+
+// How compatible are two Camelot keys? Returns 0 (same), 1 (adjacent/relative), 2 (2 steps), or 99 (far)
+function keyDistance(a, b) {
+  if (a === '?' || b === '?') return 99;
+  const an = camelotNum(a), al = camelotLetter(a);
+  const bn = camelotNum(b), bl = camelotLetter(b);
+  if (a === b) return 0;
+  // Relative minor/major (same number, different letter)
+  if (an === bn && al !== bl) return 1;
+  // Adjacent on wheel (±1, same letter)
+  const diff = Math.abs(an - bn);
+  const wrap = Math.min(diff, 12 - diff);
+  if (wrap === 1 && al === bl) return 1;
+  if (wrap === 1) return 2;
+  if (wrap === 2 && al === bl) return 2;
+  return 99;
+}
+
+function transitionScore(a, b) {
+  const kd = keyDistance(a.camelot, b.camelot);
+  const bpmDiff = Math.abs((a.bpm || 0) - (b.bpm || 0));
+  // Great: key compatible + bpm close
+  if (kd <= 1 && bpmDiff <= 8) return 'great';
+  if (kd <= 2 && bpmDiff <= 15) return 'ok';
+  if (kd <= 1 && bpmDiff <= 20) return 'ok';
+  return 'rough';
+}
+
+// ---- Greedy nearest-neighbor sort ----
+function harmonicSort(tracks, startKey) {
+  if (tracks.length === 0) return [];
+  const remaining = [...tracks];
+  let current;
+
+  if (startKey) {
+    const idx = remaining.findIndex(t => t.camelot === startKey);
+    current = idx >= 0 ? remaining.splice(idx, 1)[0] : remaining.shift();
+  } else {
+    // Start with highest energy (BPM as proxy, or just first)
+    remaining.sort((a, b) => (b.bpm || 0) - (a.bpm || 0));
+    // Actually start with a mid-energy track for better arcs
+    const midIdx = Math.floor(remaining.length * 0.3);
+    current = remaining.splice(midIdx, 1)[0];
+  }
+
+  const result = [current];
+
+  while (remaining.length > 0) {
+    let bestScore = Infinity;
+    let bestIdx = 0;
+
+    for (let i = 0; i < remaining.length; i++) {
+      const t = remaining[i];
+      const kd = keyDistance(current.camelot, t.camelot);
+      const bpmDiff = Math.abs((current.bpm || 0) - (t.bpm || 0));
+      // Weighted cost: key compatibility is more important
+      const cost = kd * 15 + bpmDiff;
+      if (cost < bestScore) {
+        bestScore = cost;
+        bestIdx = i;
+      }
+    }
+
+    current = remaining.splice(bestIdx, 1)[0];
+    result.push(current);
+  }
+
+  return result;
+}
+
+function bpmSort(tracks, desc) {
+  return [...tracks].sort((a, b) => desc ? (b.bpm || 0) - (a.bpm || 0) : (a.bpm || 0) - (b.bpm || 0));
+}
+
+function keyOnlySort(tracks) {
+  return [...tracks].sort((a, b) => {
+    const an = camelotNum(a.camelot), al = camelotLetter(a.camelot);
+    const bn = camelotNum(b.camelot), bl = camelotLetter(b.camelot);
+    if (an !== bn) return an - bn;
+    return al.localeCompare(bl);
+  });
+}
+
+// ---- Spotify OAuth (PKCE) ----
+const SCOPES = 'playlist-read-private playlist-modify-public playlist-modify-private';
+let accessToken = null;
+let playlistId = null;
+let allTracks = [];
+let sortedTracks = [];
+
+function getRedirectUri() {
+  return window.location.href.split('?')[0].split('#')[0];
+}
+
+function setStatus(msg, type='') {
+  const el = document.getElementById('status');
+  el.className = 'status-bar ' + type;
+  el.innerHTML = type === 'loading'
+    ? `<div class="spinner"></div><span>${msg}</span>`
+    : msg;
+}
+
+async function generatePKCE() {
+  const verifier = Array.from(crypto.getRandomValues(new Uint8Array(64)))
+    .map(b => 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~'[b % 66])
+    .join('');
+  const encoder = new TextEncoder();
+  const data = encoder.encode(verifier);
+  const digest = await crypto.subtle.digest('SHA-256', data);
+  const challenge = btoa(String.fromCharCode(...new Uint8Array(digest)))
+    .replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+  return { verifier, challenge };
+}
+
+async function startAuth() {
+  const clientId = document.getElementById('clientId').value.trim();
+  if (!clientId) { setStatus('Enter your Client ID first.', 'error'); return; }
+  localStorage.setItem('hm_client_id', clientId);
+  localStorage.setItem('hm_bpm_key', document.getElementById('bpmApiKey').value.trim());
+  const { verifier, challenge } = await generatePKCE();
+  localStorage.setItem('hm_verifier', verifier);
+  const params = new URLSearchParams({
+    client_id: clientId,
+    response_type: 'code',
+    redirect_uri: getRedirectUri(),
+    scope: SCOPES,
+    code_challenge_method: 'S256',
+    code_challenge: challenge,
+  });
+  window.location = `https://accounts.spotify.com/authorize?${params}`;
+}
+
+async function handleCallback(code) {
+  const clientId = localStorage.getItem('hm_client_id');
+  const verifier = localStorage.getItem('hm_verifier');
+  setStatus('Authenticating...', 'loading');
+  const resp = await fetch('https://accounts.spotify.com/api/token', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({
+      grant_type: 'authorization_code',
+      code, redirect_uri: getRedirectUri(),
+      client_id: clientId, code_verifier: verifier,
+    })
+  });
+  const data = await resp.json();
+  if (data.access_token) {
+    accessToken = data.access_token;
+    localStorage.setItem('hm_token', accessToken);
+    // Clean URL
+    window.history.replaceState({}, '', window.location.pathname);
+    await fetchUserAndShowAuth();
+    setStatus('');
+  } else {
+    setStatus('Auth failed: ' + (data.error_description || data.error), 'error');
+  }
+}
+
+async function fetchUserAndShowAuth() {
+  const r = await spotifyGet('/me');
+  document.getElementById('userName').textContent = r.display_name || r.id;
+  document.getElementById('authSection').classList.add('visible');
+  document.getElementById('loginBtn').style.display = 'none';
+  document.getElementById('loadBtn').style.display = '';
+}
+
+async function spotifyGet(path) {
+  const r = await fetch(`https://api.spotify.com/v1${path}`, {
+    headers: { Authorization: `Bearer ${accessToken}` }
+  });
+  if (!r.ok) throw new Error(`Spotify API error ${r.status}`);
+  return r.json();
+}
+
+function extractPlaylistId(input) {
+  const m = input.match(/playlist\/([a-zA-Z0-9]+)/);
+  if (m) return m[1];
+  if (/^[a-zA-Z0-9]+$/.test(input.trim())) return input.trim();
+  return null;
+}
+
+async function loadPlaylist() {
+  const url = document.getElementById('playlistUrl').value.trim();
+  playlistId = extractPlaylistId(url);
+  if (!playlistId) { setStatus('Invalid playlist URL or ID.', 'error'); return; }
+
+  setStatus('Fetching playlist tracks...', 'loading');
+  allTracks = [];
+
+  try {
+    // Fetch all pages
+    let next = `/playlists/${playlistId}/tracks?limit=100&fields=next,items(track(id,name,artists,duration_ms))`;
+    while (next) {
+      const data = await spotifyGet(next.replace('https://api.spotify.com/v1', ''));
+      const items = data.items.filter(i => i.track && i.track.id);
+      allTracks.push(...items.map(i => ({
+        id: i.track.id,
+        name: i.track.name,
+        artist: i.track.artists.map(a => a.name).join(', '),
+        duration: i.track.duration_ms,
+        bpm: null, key: null, mode: null, camelot: '?'
+      })));
+      next = data.next;
+    }
+
+    setStatus(`Fetched ${allTracks.length} tracks. Loading BPM and key data...`, 'loading');
+
+    const bpmApiKey = document.getElementById('bpmApiKey').value.trim();
+    if (!bpmApiKey) {
+      setStatus('GetSongBPM API key is required. Get one free at getsongbpm.com/api', 'error');
+      return;
+    }
+
+    // Lookup BPM + key via GetSongBPM, one at a time with a small delay to respect rate limits
+    // GetSongBPM uses Camelot notation directly (e.g. "8A"), and BPM as a number
+    const GETSONGBPM_KEY_MAP = {
+      'A Major': '11B', 'A Minor': '8A',
+      'A# Major': '6B', 'A# Minor': '3A',
+      'Bb Major': '6B', 'Bb Minor': '3A',
+      'B Major': '1B', 'B Minor': '10A',
+      'C Major': '8B', 'C Minor': '5A',
+      'C# Major': '3B', 'C# Minor': '12A',
+      'Db Major': '3B', 'Db Minor': '12A',
+      'D Major': '10B', 'D Minor': '7A',
+      'D# Major': '5B', 'D# Minor': '2A',
+      'Eb Major': '5B', 'Eb Minor': '2A',
+      'E Major': '12B', 'E Minor': '9A',
+      'F Major': '7B', 'F Minor': '4A',
+      'F# Major': '2B', 'F# Minor': '11A',
+      'Gb Major': '2B', 'Gb Minor': '11A',
+      'G Major': '9B', 'G Minor': '6A',
+      'G# Major': '4B', 'G# Minor': '1A',
+      'Ab Major': '4B', 'Ab Minor': '1A',
+    };
+
+    let fetched = 0;
+    for (const track of allTracks) {
+      try {
+        const query = encodeURIComponent(track.name);
+        const artist = encodeURIComponent(track.artist.split(',')[0].trim());
+        const url = `https://api.getsong.co/search/?api_key=${bpmApiKey}&type=song&lookup=song:${query}+artist:${artist}`;
+        const r = await fetch(url);
+        if (r.ok) {
+          const data = await r.json();
+          const song = data?.search?.[0];
+          if (song) {
+            track.bpm = parseInt(song.tempo) || null;
+            const keyStr = song.key_of ? song.key_of.trim() : null;
+            track.camelot = GETSONGBPM_KEY_MAP[keyStr] || '?';
+          }
+        }
+      } catch(e) {
+        // silently skip, track stays with camelot='?'
+      }
+      fetched++;
+      if (fetched % 5 === 0) {
+        setStatus(`Loading BPM and key... ${fetched}/${allTracks.length}`, 'loading');
+        await new Promise(r => setTimeout(r, 100)); // small pause every 5 requests
+      }
+    }
+
+    // Populate start key selector
+    const keys = [...new Set(allTracks.map(t => t.camelot).filter(k => k !== '?'))].sort((a,b) => {
+      const an = parseInt(a), bn = parseInt(b);
+      if (an !== bn) return an - bn;
+      return a.slice(-1).localeCompare(b.slice(-1));
+    });
+    const sel = document.getElementById('startKey');
+    sel.innerHTML = '<option value="">Any</option>';
+    keys.forEach(k => {
+      const opt = document.createElement('option');
+      opt.value = k; opt.textContent = k;
+      sel.appendChild(opt);
+    });
+
+    setStatus(`Loaded ${allTracks.length} tracks.`, 'success');
+    document.getElementById('sortControls').classList.add('visible');
+    document.getElementById('panelOriginal').classList.add('visible');
+    document.getElementById('panelSorted').classList.add('visible');
+
+    renderOriginal();
+    sortAndRender();
+
+  } catch(e) {
+    setStatus('Error: ' + e.message, 'error');
+  }
+}
+
+function renderTrackList(container, tracks, showTransitions) {
+  container.innerHTML = '';
+  tracks.forEach((t, i) => {
+    const div = document.createElement('div');
+    div.className = 'track';
+
+    const letterClass = t.camelot.endsWith('A') ? 'key-A' : (t.camelot.endsWith('B') ? 'key-B' : '');
+
+    div.innerHTML = `
+      <div class="track-num">${i+1}</div>
+      <div class="track-info">
+        <div class="track-name">${t.name}</div>
+        <div class="track-artist">${t.artist}</div>
+      </div>
+      <div class="track-meta">
+        <span class="key-badge ${letterClass}">${t.camelot}</span>
+        <span class="bpm-label">${t.bpm ? t.bpm + ' bpm' : ''}</span>
+      </div>
+    `;
+    container.appendChild(div);
+
+    if (showTransitions && i < tracks.length - 1) {
+      const next = tracks[i + 1];
+      const score = transitionScore(t, next);
+      const ind = document.createElement('div');
+      ind.className = 'transition-indicator';
+      const bpmDiff = Math.abs((t.bpm||0)-(next.bpm||0));
+      const kd = keyDistance(t.camelot, next.camelot);
+      const kdLabel = kd===0?'same key': kd===1?'adjacent key': kd===2?'2 steps': 'far key';
+      ind.innerHTML = `
+        <div class="transition-dot t-${score}"></div>
+        <span class="transition-text">${kdLabel}, ${bpmDiff} bpm diff</span>
+      `;
+      container.appendChild(ind);
+    }
+  });
+}
+
+function renderOriginal() {
+  document.getElementById('originalCount').textContent = allTracks.length + ' tracks';
+  renderTrackList(document.getElementById('listOriginal'), allTracks, true);
+}
+
+function sortAndRender() {
+  const strategy = document.getElementById('sortStrategy').value;
+  const startKey = document.getElementById('startKey').value;
+
+  if (strategy === 'harmonic_bpm') {
+    sortedTracks = harmonicSort(allTracks, startKey || null);
+  } else if (strategy === 'bpm_asc') {
+    sortedTracks = bpmSort(allTracks, false);
+  } else if (strategy === 'bpm_desc') {
+    sortedTracks = bpmSort(allTracks, true);
+  } else {
+    sortedTracks = keyOnlySort(allTracks);
+  }
+
+  document.getElementById('sortedCount').textContent = sortedTracks.length + ' tracks';
+  renderTrackList(document.getElementById('listSorted'), sortedTracks, true);
+  updateScore(sortedTracks);
+}
+
+function updateScore(tracks) {
+  if (tracks.length < 2) return;
+  let great = 0, ok = 0, rough = 0;
+  for (let i = 0; i < tracks.length - 1; i++) {
+    const s = transitionScore(tracks[i], tracks[i+1]);
+    if (s === 'great') great++;
+    else if (s === 'ok') ok++;
+    else rough++;
+  }
+  const total = tracks.length - 1;
+  const pct = Math.round(((great + ok * 0.5) / total) * 100);
+
+  const el = document.getElementById('scoreOverall');
+  el.textContent = pct + '%';
+  el.className = 'score-value ' + (pct >= 80 ? 'good' : pct >= 60 ? 'ok' : 'bad');
+  document.getElementById('scoreGreat').textContent = great;
+  document.getElementById('scoreOk').textContent = ok;
+  document.getElementById('scoreRough').textContent = rough;
+  document.getElementById('scoreSummary').classList.add('visible');
+}
+
+function showWriteSection() {
+  document.getElementById('writeSection').classList.add('visible');
+  document.getElementById('writeSection').scrollIntoView({ behavior: 'smooth' });
+}
+
+async function writeToSpotify() {
+  const btn = document.getElementById('writeBtn');
+  btn.disabled = true;
+  btn.textContent = 'Reordering...';
+
+  try {
+    const ids = sortedTracks.map(t => `spotify:track:${t.id}`);
+
+    // Spotify only allows 100 per request for reorder via replacement
+    // Use PUT /playlists/{id}/tracks with uris (replaces all, up to 100 at a time)
+    // For >100 tracks we do the first 100 then append the rest
+    setStatus('Writing order to Spotify...', 'loading');
+
+    // First batch: replace
+    await fetch(`https://api.spotify.com/v1/playlists/${playlistId}/tracks`, {
+      method: 'PUT',
+      headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ uris: ids.slice(0, 100) })
+    });
+
+    // Subsequent batches: append
+    for (let i = 100; i < ids.length; i += 100) {
+      await fetch(`https://api.spotify.com/v1/playlists/${playlistId}/tracks`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ uris: ids.slice(i, i + 100) })
+      });
+      setStatus(`Writing... ${Math.min(i+100, ids.length)}/${ids.length}`, 'loading');
+    }
+
+    setStatus('Playlist reordered successfully!', 'success');
+    btn.textContent = 'Done!';
+    document.getElementById('writeSection').classList.remove('visible');
+  } catch(e) {
+    setStatus('Write failed: ' + e.message, 'error');
+    btn.disabled = false;
+    btn.textContent = 'Reorder playlist on Spotify';
+  }
+}
+
+// ---- Init ----
+document.getElementById('redirectUriDisplay').textContent = getRedirectUri();
+document.getElementById('redirectUriInstructions').textContent = getRedirectUri();
+
+// Restore saved values
+const saved = localStorage.getItem('hm_client_id');
+if (saved) document.getElementById('clientId').value = saved;
+const savedBpm = localStorage.getItem('hm_bpm_key');
+if (savedBpm) document.getElementById('bpmApiKey').value = savedBpm;
+
+// Restore token
+const savedToken = localStorage.getItem('hm_token');
+if (savedToken) {
+  accessToken = savedToken;
+  fetchUserAndShowAuth().catch(() => {
+    // Token expired, clear it
+    localStorage.removeItem('hm_token');
+    accessToken = null;
+  });
+}
+
+// Handle OAuth callback
+const params = new URLSearchParams(window.location.search);
+const code = params.get('code');
+if (code) handleCallback(code);
+</script>
+</body>
+</html>
