@@ -860,49 +860,49 @@ async function loadPlaylist() {
 
     // Lookup BPM + key via GetSongBPM, one at a time with a small delay to respect rate limits
     // GetSongBPM uses Camelot notation directly (e.g. "8A"), and BPM as a number
-    const GETSONGBPM_KEY_MAP = {
-      'A Major': '11B', 'A Minor': '8A',
-      'A# Major': '6B', 'A# Minor': '3A',
-      'Bb Major': '6B', 'Bb Minor': '3A',
-      'B Major': '1B', 'B Minor': '10A',
-      'C Major': '8B', 'C Minor': '5A',
-      'C# Major': '3B', 'C# Minor': '12A',
-      'Db Major': '3B', 'Db Minor': '12A',
-      'D Major': '10B', 'D Minor': '7A',
-      'D# Major': '5B', 'D# Minor': '2A',
-      'Eb Major': '5B', 'Eb Minor': '2A',
-      'E Major': '12B', 'E Minor': '9A',
-      'F Major': '7B', 'F Minor': '4A',
-      'F# Major': '2B', 'F# Minor': '11A',
-      'Gb Major': '2B', 'Gb Minor': '11A',
-      'G Major': '9B', 'G Minor': '6A',
-      'G# Major': '4B', 'G# Minor': '1A',
-      'Ab Major': '4B', 'Ab Minor': '1A',
+    // GetSongBPM returns key_of as short notation e.g. "Am", "C#m", "Bb", "F#"
+    // Map to Camelot: minor keys end in 'm', major keys don't
+    const OPEN_KEY_TO_CAMELOT = {
+      '1d':'6B','1m':'6A','2d':'7B','2m':'7A','3d':'8B','3m':'8A',
+      '4d':'9B','4m':'9A','5d':'10B','5m':'10A','6d':'11B','6m':'11A',
+      '7d':'12B','7m':'12A','8d':'1B','8m':'1A','9d':'2B','9m':'2A',
+      '10d':'3B','10m':'3A','11d':'4B','11m':'4A','12d':'5B','12m':'5A',
     };
 
     let fetched = 0;
     for (const track of allTracks) {
       try {
-        const query = encodeURIComponent(track.name);
-        const artist = encodeURIComponent(track.artist.split(',')[0].trim());
-        const url = `https://api.getsong.co/search/?api_key=${bpmApiKey}&type=song&lookup=song:${query}+artist:${artist}`;
-        const r = await fetch(url);
-        if (r.ok) {
-          const data = await r.json();
-          const song = data?.search?.[0];
-          if (song) {
-            track.bpm = parseInt(song.tempo) || null;
-            const keyStr = song.key_of ? song.key_of.trim() : null;
-            track.camelot = GETSONGBPM_KEY_MAP[keyStr] || '?';
+        // Step 1: search for the song ID
+        const query = encodeURIComponent(track.name + ' ' + track.artist.split(',')[0].trim());
+        const searchUrl = `https://api.getsong.co/search/?api_key=${bpmApiKey}&type=song&lookup=${query}`;
+        const r1 = await fetch(searchUrl);
+        if (r1.ok) {
+          const d1 = await r1.json();
+          const hit = d1?.search?.[0];
+          if (hit?.id) {
+            // Step 2: fetch full song details for BPM and key
+            const songUrl = `https://api.getsong.co/song/?api_key=${bpmApiKey}&id=${hit.id}`;
+            const r2 = await fetch(songUrl);
+            if (r2.ok) {
+              const d2 = await r2.json();
+              const song = d2?.song;
+              if (song) {
+                track.bpm = parseInt(song.tempo) || null;
+                // open_key is like "3m" or "4d" — most reliable mapping
+                if (song.open_key) {
+                  track.camelot = OPEN_KEY_TO_CAMELOT[song.open_key] || '?';
+                }
+              }
+            }
           }
         }
       } catch(e) {
-        // silently skip, track stays with camelot='?'
+        // silently skip
       }
       fetched++;
       if (fetched % 5 === 0) {
         setStatus(`Loading BPM and key... ${fetched}/${allTracks.length}`, 'loading');
-        await new Promise(r => setTimeout(r, 100)); // small pause every 5 requests
+        await new Promise(r => setTimeout(r, 200));
       }
     }
 
