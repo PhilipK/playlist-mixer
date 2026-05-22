@@ -836,15 +836,15 @@ async function loadPlaylist() {
 
   try {
     // Fetch all pages
-    let next = `/playlists/${playlistId}/tracks?limit=100&fields=next,items(track(id,name,artists,duration_ms))`;
+    let next = `/playlists/${playlistId}/items?limit=100&fields=next,items(item(id,name,artists,duration_ms))`;
     while (next) {
       const data = await spotifyGet(next.replace('https://api.spotify.com/v1', ''));
-      const items = data.items.filter(i => i.track && i.track.id);
+      const items = data.items.filter(i => i.item && i.item.id);
       allTracks.push(...items.map(i => ({
-        id: i.track.id,
-        name: i.track.name,
-        artist: i.track.artists.map(a => a.name).join(', '),
-        duration: i.track.duration_ms,
+        id: i.item.id,
+        name: i.item.name,
+        artist: i.item.artists.map(a => a.name).join(', '),
+        duration: i.item.duration_ms,
         bpm: null, key: null, mode: null, camelot: '?'
       })));
       next = data.next;
@@ -1035,7 +1035,7 @@ async function writeToSpotify() {
     setStatus('Writing order to Spotify...', 'loading');
 
     // First batch: replace
-    await fetch(`https://api.spotify.com/v1/playlists/${playlistId}/tracks`, {
+    await fetch(`https://api.spotify.com/v1/playlists/${playlistId}/items`, {
       method: 'PUT',
       headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({ uris: ids.slice(0, 100) })
@@ -1043,7 +1043,7 @@ async function writeToSpotify() {
 
     // Subsequent batches: append
     for (let i = 100; i < ids.length; i += 100) {
-      await fetch(`https://api.spotify.com/v1/playlists/${playlistId}/tracks`, {
+      await fetch(`https://api.spotify.com/v1/playlists/${playlistId}/items`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({ uris: ids.slice(i, i + 100) })
